@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>localbkup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>${HOME}/.local/usr/bin/localbkup.py</string>
+  </array>
+  <key>StandardOutPath</key>
+  <string>${HOME}/.local/var/log/localbkup.log</string>
+  <key>StandardErrorPath</key>
+  <string>${HOME}/.local/var/log/localbkup.err.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>StartCalendarInterval</key>
+  <dict>
+      <key>Hour</key>
+      <integer>13</integer>
+      <key>Minute</key>
+      <integer>03</integer>
+  </dict>
+  <key>ProcessType</key>
+  <string>Interactive</string>          
+  <key>Nice</key>
+  <integer>-20</integer>
+</dict>
+</plist>

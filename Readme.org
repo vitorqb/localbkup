@@ -1,0 +1,75 @@
+* Local Bkup
+
+  A small script to run a backup locally using python+tar+gpg for compression + encryption.
+
+
+*** Configuration
+    
+    A configuration file is expected to exist on
+    =~/.config/localbkup.json=.  Because the file contains raw
+    passwords, *make sure it has 600 permissions*, so they are not
+    readable for other users.
+
+    Those are the acceptable keys:
+
+    - *files*: An array of all files that will be given to ~tar~ for generating the backup.
+      
+    - *exclude*: An array of files to exclude, given to tar's ~--exclude~.
+
+    - *password*: The password using for encrypting the file.
+
+    - *destination_folder*: The folder where bkups will be saved.
+
+    Here is an example:
+
+#+begin_src json
+{
+  "files": [
+    "/Users/myuser/.zshrc",
+    "/Users/myuser/.config",
+    "/Users/myuser/.skhdrc"
+  ],
+  "exclude": [
+    "*.pyc"
+  ],
+  "destination_folder": "/Users/myuser/Google Drive File Stream/My Drive/backups/localbkup",
+  "password": "a very secret password"
+}
+#+end_src
+
+
+*** Scheduling
+
+    To schedule it to run everyday at 12:03, do the following:
+    1. Copy the file =./launchd/localbkup.plist= to =~/Library/LaunchAgents/localbkup.plist=
+    2. Edit the copied file, and *EVERYWHERE* where it's written ${HOME} write your home path.
+    3. Now run =launchctl load -w ~/Library/LaunchAgents/localbkup.plist=
+    4. And run =launchctl enable user/$(id -u)/localbkup=
+
+
+*** Usage
+
+#+begin_example
+usage: localbkup.py [-h] [-c CONFIG]
+
+Makes a local backup of a list of files into a destination folder.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c CONFIG, --config CONFIG
+                        Configuration file. Defaults to /Users/vitorbarbosa/.config/localbkup.json.
+#+end_example
+
+
+*** Development
+
+#+begin_example
+make test
+/usr/local/bin/python3 -m unittest tests
+...........
+----------------------------------------------------------------------
+Ran 11 tests in 0.010s
+
+OK
+#+end_example
+
