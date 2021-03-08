@@ -92,6 +92,11 @@ class ShellRunner(unittest.TestCase):
             runner = sut.ShellRunner()
             runner(args)
 
+    def test_doesnt_fail_if_check_flag_is_false(self):
+        args = ["bash", "-c", "exit 1"]
+        runner = sut.ShellRunner(check=False)
+        runner(args)
+
     def test_return_code_non_zero(self):
         args = ["bash", "-c", "exit 1"]
         with self.assertRaises(RuntimeError):

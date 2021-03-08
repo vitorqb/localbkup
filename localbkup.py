@@ -65,6 +65,9 @@ class Configuration:
 class ShellRunner:
     """ Simple runner for shell commands, optionally giving it some stdin. """
 
+    def __init__(self, check=True):
+        self._check = check
+
     def __call__(self, args, stdin_string=None, stdout=subprocess.PIPE):
         logging.info(f"Running shell command: {args}")
         process = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=stdout)
@@ -72,7 +75,7 @@ class ShellRunner:
             process.communicate(stdin_string.encode())
         else:
             process.communicate()
-        if process.returncode != 0:
+        if self._check is True and process.returncode != 0:
             raise RuntimeError("Shell command has failed :( - check your logs.")
 
 
@@ -183,10 +186,9 @@ def extract_suffix(path):
 # Main function and runner
 def main(args):
     config = Configuration.from_cli_args(args)
-    shellRunner = ShellRunner()
     tmp_file_generator = TempFileGenerator()
-    compressor = TarCompressor(shellRunner, tmp_file_generator)
-    encryptor = Encryptor(shellRunner, tmp_file_generator)
+    compressor = TarCompressor(ShellRunner(check=False), tmp_file_generator)
+    encryptor = Encryptor(ShellRunner(), tmp_file_generator)
     file_name_generator = FileNameGenerator(datetime.datetime.now)
     runner = Runner(compressor, encryptor, file_name_generator)
     try:
