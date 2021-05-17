@@ -6,13 +6,15 @@ import subprocess
 import datetime
 import json
 import os
-import pathlib
+import shutil
+import tempfile
 
 
 class LocalBkupTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        super(cls)
         sut.setLogger(mock.Mock())
 
 
@@ -49,7 +51,7 @@ class ConfigurationTest(LocalBkupTestCase):
 class TarCompressor(LocalBkupTestCase):
 
     def test_get_tar_cmd(self):
-        config = sut.Configuration("/destination", ["/foo"], ["/bar"], "pas")
+        config = sut.Configuration("/destination", ["/foo"], ["/bar"], "pas", 10)
         result = sut.TarCompressor._get_tar_cmd(config, "/tmpfile")
         self.assertEqual(result, ["tar", "-zcf", "/tmpfile", "--exclude", "/bar", "/foo"])
 
@@ -115,7 +117,7 @@ class FileNameGenerator(LocalBkupTestCase):
 
     def test_base(self):
         def now_fn(): return datetime.datetime(2020, 10, 12, 4, 5, 6)
-        config = sut.Configuration("/destination", [], [], "")
+        config = sut.Configuration("/destination", [], [], "", None)
         generator = sut.FileNameGenerator(now_fn)
 
         result = generator(config, ".tar.gz")
@@ -132,6 +134,55 @@ class TempFileGeneratorTest(LocalBkupTestCase):
         self.assertTrue(os.path.exists(file_.name))
         generator.cleanup()
         self.assertFalse(os.path.exists(file_.name))
+
+
+class TestOldBackupCleaner(LocalBkupTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self._tempdir = tempfile.mkdtemp()
+        with open(f"{self._tempdir}/localbkup_20201012T040506", "w") as f:
+            f.write("one")
+        with open(f"{self._tempdir}/localbkup_20201012T040507", "w") as f:
+            f.write("two")
+        with open(f"{self._tempdir}/localbkup_20201012T040508", "w") as f:
+            f.write("three")
+        with open(f"{self._tempdir}/not-a-backup", "w") as f:
+            f.write("not a backup")
+
+    def tearDown(self):
+        super().tearDown()
+        shutil.rmtree(self._tempdir)
+
+    def test_do_nothing_if_not_enough_files(self):
+        cleaner = sut.OldBackupCleaner(self._tempdir, 3)
+        cleaner()
+        self.assertEqual(
+            ["localbkup_20201012T040506",
+             "localbkup_20201012T040507",
+             "localbkup_20201012T040508",
+             "not-a-backup"],
+            sorted(os.listdir(self._tempdir))
+        )
+
+    def test_removes_one_file(self):
+        cleaner = sut.OldBackupCleaner(self._tempdir, 2)
+        cleaner()
+        self.assertEqual(
+            ["localbkup_20201012T040507",
+             "localbkup_20201012T040508",
+             "not-a-backup"],
+            sorted(os.listdir(self._tempdir))
+        )
+
+    def test_removes_two_file(self):
+        cleaner = sut.OldBackupCleaner(self._tempdir, 1)
+        cleaner()
+        self.assertEqual(
+            ["localbkup_20201012T040508",
+             "not-a-backup"],
+            sorted(os.listdir(self._tempdir))
+        )
 
 
 class ExtractSuffix(LocalBkupTestCase):

@@ -38,7 +38,8 @@ parser.add_argument(
 parser.add_argument(
     "-l",
     "--log-file",
-    help=(f"A file where to log verbose output. Defaults to {DEFAULT_LOG_FILE}")
+    help=(f"A file where to log verbose output. Defaults to {DEFAULT_LOG_FILE}"),
+    default=DEFAULT_LOG_FILE
 )
 
 
@@ -79,17 +80,19 @@ class LogConfigurer:
 class Configuration:
     """ Object holding the configuration for the script. """
 
-    def __init__(self, destination_folder, source_files, exclude_files, password):
+    def __init__(self, destination_folder, source_files, exclude_files, password, keep_count):
         """
         @param destination_folder - The destination folder to where the backup should be made.
         @param source_files - A list of all source files.
         @param exclude_files - A list of files to exclude from the bkup.
         @param password - A password used for encryption.
+        @param keep_count - Number of bkups to keep
         """
         self.destination_folder = destination_folder
         self.source_files = source_files
         self.exclude_files = exclude_files
         self.password = password
+        self.keep_count = keep_count
 
     def __str__(self):
         return f"Configuration(destination_folder={self.destination_folder}, ...)"
@@ -105,7 +108,8 @@ class Configuration:
         exclude_files = json_config.get("exclude", [])
         password = json_config.get("password")
         destination_folder = json_config.get("destination_folder")
-        return cls(destination_folder, source_files, exclude_files, password)
+        keep_count = json_config.get("keep_count")
+        return cls(destination_folder, source_files, exclude_files, password, keep_count)
 
 
 class ShellRunner:
@@ -184,10 +188,11 @@ class FileNameGenerator:
 class Runner:
     """ Main runner responsible for doing the backup """
 
-    def __init__(self, compressor, encryptor, file_name_generator):
+    def __init__(self, compressor, encryptor, file_name_generator, old_backup_cleaner):
         self.compressor = compressor
         self.encryptor = encryptor
         self.file_name_generator = file_name_generator
+        self.old_backup_cleaner = old_backup_cleaner
 
     def __call__(self, config):
         compressed_filepath = self.compressor(config)
@@ -198,6 +203,7 @@ class Runner:
         pathlib.Path(final_filepath).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(encrypted_filepath, final_filepath)
         LOGGER.info(f"Wrote final file {final_filepath}")
+        self.old_backup_cleaner()
 
 
 class TempFileGenerator:
@@ -219,6 +225,27 @@ class TempFileGenerator:
             f.close()
 
 
+class OldBackupCleaner:
+    """ Service that cleans old backups (rm files) """
+
+    def __init__(self, _dir, keep_count):
+        self._dir = _dir
+        self._keep_count = keep_count
+
+    def __call__(self):
+        """ Cleans up old backups """
+        if self._keep_count is not None:
+            LOGGER.info("Started cleanup...")
+            file_names = os.listdir(self._dir)
+            file_names = [x for x in file_names if x.startswith("localbkup")]
+            file_names = sorted(file_names)
+            file_names = file_names[:-self._keep_count]
+            for file_name in file_names:
+                LOGGER.info(f"Cleaning up {file_name}")
+                os.remove(f"{self._dir}/{file_name}")
+            LOGGER.info("Finished cleanup...")
+
+
 def extract_suffix(path):
     filename = path
     out = ""
@@ -237,7 +264,8 @@ def main(args):
     compressor = TarCompressor(ShellRunner(check=False), tmp_file_generator)
     encryptor = Encryptor(ShellRunner(), tmp_file_generator)
     file_name_generator = FileNameGenerator(datetime.datetime.now)
-    runner = Runner(compressor, encryptor, file_name_generator)
+    old_backup_cleaner = OldBackupCleaner(config.destination_folder, config.keep_count)
+    runner = Runner(compressor, encryptor, file_name_generator, old_backup_cleaner)
     try:
         runner(config)
     finally:
