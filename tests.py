@@ -9,12 +9,19 @@ import os
 import pathlib
 
 
+class LocalBkupTestCase(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        sut.setLogger(mock.Mock())
+
+
 class FakeCliArgs():
     def __init__(self, config):
         self.config = config
 
 
-class ConfigurationTest(unittest.TestCase):
+class ConfigurationTest(LocalBkupTestCase):
 
     def test_from_cli_args(self):
         json_file = io.StringIO(json.dumps({
@@ -39,7 +46,7 @@ class ConfigurationTest(unittest.TestCase):
         self.assertEqual(result.exclude_files, ["foo", "bar/baz"])
 
 
-class TarCompressor(unittest.TestCase):
+class TarCompressor(LocalBkupTestCase):
 
     def test_get_tar_cmd(self):
         config = sut.Configuration("/destination", ["/foo"], ["/bar"], "pas")
@@ -68,7 +75,7 @@ class MockPopen:
         return 0
 
 
-class ShellRunner(unittest.TestCase):
+class ShellRunner(LocalBkupTestCase):
 
     def test_echo_hello(self):
         with mock.patch.object(subprocess, "Popen", new=MockPopen):
@@ -104,7 +111,7 @@ class ShellRunner(unittest.TestCase):
             runner(args)
 
 
-class FileNameGenerator(unittest.TestCase):
+class FileNameGenerator(LocalBkupTestCase):
 
     def test_base(self):
         def now_fn(): return datetime.datetime(2020, 10, 12, 4, 5, 6)
@@ -116,7 +123,7 @@ class FileNameGenerator(unittest.TestCase):
         self.assertEqual(result, "/destination/localbkup_20201012T040506.tar.gz")
 
 
-class TempFileGeneratorTest(unittest.TestCase):
+class TempFileGeneratorTest(LocalBkupTestCase):
 
     def test_make_and_clean_file(self):
         generator = sut.TempFileGenerator()
@@ -127,7 +134,7 @@ class TempFileGeneratorTest(unittest.TestCase):
         self.assertFalse(os.path.exists(file_.name))
 
 
-class ExtractSuffix(unittest.TestCase):
+class ExtractSuffix(LocalBkupTestCase):
 
     def test_base(self):
         self.assertEqual(sut.extract_suffix("foo.bar"), ".bar")

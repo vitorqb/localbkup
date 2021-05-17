@@ -9,9 +9,9 @@
     <string>${HOME}/.local/usr/bin/localbkup.py</string>
   </array>
   <key>StandardOutPath</key>
-  <string>${HOME}/.local/var/log/localbkup.log</string>
+  <string>${HOME}/.local/var/log/localbkup_launchd.log</string>
   <key>StandardErrorPath</key>
-  <string>${HOME}/.local/var/log/localbkup.err.log</string>
+  <string>${HOME}/.local/var/log/localbkup_launchd.err.log</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>

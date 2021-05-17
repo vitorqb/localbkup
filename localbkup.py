@@ -10,14 +10,22 @@ import datetime
 import shutil
 import pathlib
 
-logging.basicConfig(level=logging.INFO)
 
-
-# Some globals
+# SOME GLOBALS
 DEFAULT_CONFIG_FILE_PATH = os.path.expanduser("~/.config/localbkup.json")
+DEFAULT_LOG_FILE = os.path.expanduser("~/.local/var/log/localbkup.log")
 
 
-# Parser configuration
+# Dynamic vars
+LOGGER = None
+
+
+def setLogger(x):
+    global LOGGER
+    LOGGER = x
+
+
+# PARSER CONFIGURATION
 parser = argparse.ArgumentParser(
     description="Makes a local backup of a list of files into a destination folder."
 )
@@ -27,9 +35,47 @@ parser.add_argument(
     help=(f"Configuration file. Defaults to {DEFAULT_CONFIG_FILE_PATH}."),
     type=argparse.FileType('r')
 )
+parser.add_argument(
+    "-l",
+    "--log-file",
+    help=(f"A file where to log verbose output. Defaults to {DEFAULT_LOG_FILE}")
+)
 
 
 # Helpers
+class LogConfigurer:
+    """ Configures the logging """
+
+    def __init__(self, log_file):
+        self._log_file = log_file
+
+    def __call__(self):
+        if not os.path.exists(os.path.dirname(self._log_file)):
+            os.makedirs(os.path.dirname(self._log_file))
+
+        # create logger with 'spam_application'
+        logger = logging.getLogger('localbkup')
+        logger.setLevel(logging.DEBUG)
+
+        fh = logging.FileHandler(self._log_file)
+        fh.setLevel(logging.DEBUG)
+
+        # create console handler with a higher log level
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.INFO)
+
+        # create formatter and add it to the handlers
+        formatter = logging.Formatter('[%(asctime)s | %(name)s | %(levelname)s] %(message)s')
+        fh.setFormatter(formatter)
+        ch.setFormatter(formatter)
+
+        # add the handlers to the logger
+        logger.addHandler(fh)
+        logger.addHandler(ch)
+
+        return logger
+
+
 class Configuration:
     """ Object holding the configuration for the script. """
 
@@ -69,7 +115,7 @@ class ShellRunner:
         self._check = check
 
     def __call__(self, args, stdin_string=None, stdout=subprocess.PIPE):
-        logging.info(f"Running shell command: {args}")
+        LOGGER.info(f"Running shell command: {args}")
         process = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=stdout)
         if stdin_string is not None:
             process.communicate(stdin_string.encode())
@@ -145,13 +191,13 @@ class Runner:
 
     def __call__(self, config):
         compressed_filepath = self.compressor(config)
-        logging.info(f"Compressed to file: {compressed_filepath}")
+        LOGGER.info(f"Compressed to file: {compressed_filepath}")
         encrypted_filepath = self.encryptor(compressed_filepath, config)
-        logging.info(f"Encrypted to file: {encrypted_filepath}")
+        LOGGER.info(f"Encrypted to file: {encrypted_filepath}")
         final_filepath = self.file_name_generator(config, extract_suffix(encrypted_filepath))
         pathlib.Path(final_filepath).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(encrypted_filepath, final_filepath)
-        logging.info(f"Wrote final file {final_filepath}")
+        LOGGER.info(f"Wrote final file {final_filepath}")
 
 
 class TempFileGenerator:
@@ -167,9 +213,9 @@ class TempFileGenerator:
 
     def cleanup(self):
         """ Cleans up all temporary files created """
-        logging.info("Cleaning up...")
+        LOGGER.info("Cleaning up...")
         for f in self.managed_files:
-            logging.info(f"Removing {f.name}")
+            LOGGER.info(f"Removing {f.name}")
             f.close()
 
 
@@ -185,6 +231,7 @@ def extract_suffix(path):
 
 # Main function and runner
 def main(args):
+    setLogger(LogConfigurer(args.log_file)())
     config = Configuration.from_cli_args(args)
     tmp_file_generator = TempFileGenerator()
     compressor = TarCompressor(ShellRunner(check=False), tmp_file_generator)
