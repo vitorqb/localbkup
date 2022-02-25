@@ -46,6 +46,19 @@
     3. Now run =launchctl load -w ~/Library/LaunchAgents/localbkup.plist=
     4. And run =launchctl enable user/$(id -u)/localbkup=
 
+*** Single run
+
+    If you want to run the backup once, you can use launchctl:
+
+#+begin_src sh
+launchctl start localbkup
+#+end_src
+
+    In order to see the logs, you can just stream the logging file
+
+#+begin_src sh
+tail -f ~/.local/var/log/localbkup_launchd.log
+#+end_src
 
 *** Usage
 
